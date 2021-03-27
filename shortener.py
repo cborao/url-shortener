@@ -16,14 +16,17 @@ import webapp
 from urllib.parse import unquote
 
 class Shortener (webapp.webApp):
-    """Web application for managing shortered URLS.
 
-    PONER COMENTARIOS
+    """ Web application for managing shortered URLS.
 
-    Content is stored in a dictionary, which is initialized
-    with the web content.
-    The client can accest the content or add new content"""
+    The client introduce an original url and a shortered url.
+    The application stores in a dictionary the original url and
+    provide to the client a resource with the same name as the shortered url.
+    The client can access this resource to get redirected to the original url or
+    repeat the process.
+    """
 
+    # The dictionary where it will be stored the original urls by shorted urls keys
     content: dict = {}
 
     def parse(self, request):
@@ -31,17 +34,22 @@ class Shortener (webapp.webApp):
             1) the method of the request (POST or GET)
             2) the resource name (including /)
             3) the body of the request
-            CAMBIAR COMENTARIOS
         """
-
+        # get the method
         method = request.split(' ', 2)[0]
+        # get the resource
         resource = request.split(' ', 2)[1]
+        # get the body
         index = request.find('\r\n\r\n') + len('\r\n\r\n')
         body = request[index:]
 
         return method, resource, body
 
     def format_urls(self) -> str:
+        """
+        Format the dictionary content to a string output
+        :return a string with all the shortered url and their respective original urls
+        """
         text: str = ""
         for url in self.content:
             text = text + '<br>' + self.content[url] + ' <b>as</b> ' + url
@@ -52,6 +60,8 @@ class Shortener (webapp.webApp):
         (method, resource, body) = parsedRequest
 
         if method == "GET":
+
+            # when the petition is the root page
             if resource == "/":
                 httpCode = "200 OK"
                 htmlBody = '<html><body><form action="/" method="POST">'\
@@ -62,30 +72,37 @@ class Shortener (webapp.webApp):
                            + '<p>' + self.format_urls() + '</p>'\
                            + '</form></body></html>'
 
+            # when the petition is a resource inside the dictionary (previous shortered url)
             elif resource in self.content:
                 httpCode = "308 Permanent Redirect"
                 htmlBody = '<meta http-equiv="refresh" content="1;URL=' + self.content[resource] + '">'
 
+            # when the petition is an unknown resource
             else:
                 httpCode = "404 Not Found"
                 htmlBody = "Error: " + resource + " is not an avaliable resource"
 
         if method == "POST":
-    
-            if body.find('url=') != -1 and body.find('&') != -1 and body.find('short=') != -1:
 
-                info = body.split('&')
-                url = unquote(info[0].split('=')[1])
-                short_url = '/' + info[1].split('=')[1]
+            if body.find('url=') == -1 or body.find('&') == -1 or body.find('short=') == -1:
+                return "503 Service Unavailable", "<html>Method POST not implemented without a query string</html>"
 
-                if not url.startswith('http://') and not url.startswith('https://'):
-                    url = 'https://' + url
+            # We extract the original url and the shorted url from the body
+            info = body.split('&')
+            url = unquote(info[0].split('=')[1])
+            shorted = '/' + info[1].split('=')[1]
 
-                self.content[short_url] = url
+            # We check if the url was typed including 'http://', 'https://' or not
+            if not url.startswith('http://') and not url.startswith('https://'):
+                # if the url dont't include it, we add it to the start of the url
+                url = 'https://' + url
+
+            # We add the url at the dictionary, with the shorted url as key
+            self.content[shorted] = url
 
             httpCode = "200 OK"
-            htmlBody = '<html><body><a href="' + self.content[short_url] + '">' + url + '</a> is now '\
-                                            + '<a href="' + self.content[short_url] + '">' + short_url + '</body></html>'
+            htmlBody = '<html><body><a href="' + self.content[shorted] + '">' + url + '</a> is now '\
+                                            + '<a href="' + self.content[shorted] + '">' + shorted + '</body></html>'
 
         return (httpCode, htmlBody)
 
