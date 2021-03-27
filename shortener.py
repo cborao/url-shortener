@@ -13,7 +13,7 @@
 """
 
 import webapp
-
+from urllib.parse import unquote
 
 class Shortener (webapp.webApp):
     """Web application for managing shortered URLS.
@@ -24,10 +24,7 @@ class Shortener (webapp.webApp):
     with the web content.
     The client can accest the content or add new content"""
 
-    content: dict = {'/gg': 'https://www.google.es',
-                     '/bang': 'https://www.banggood.com',
-                     '/prime': 'https://www.amazon.com',
-               }
+    content: dict = {}
 
     def parse(self, request):
         """Return:
@@ -58,33 +55,37 @@ class Shortener (webapp.webApp):
             if resource == "/":
                 httpCode = "200 OK"
                 htmlBody = '<html><body><form action="/" method="POST">'\
-                           + '<ul><li>Type original URL: <input name="url" type="text" /></li>'\
-                           + '<li>Type short URL: <input name="short" type="text" /></li>'\
-                           + '<li><input type="submit" value="Submit" /></li></ul>' \
+                           + '<ul><li>Type original URL: <input name="url" type=text />'\
+                           + '<li>Type shorted URL: <input name="short" type="text" />'\
+                           + '<input type="submit" value="Submit" /></ul>' \
                            + '<p><b>' + 'Shortered urls:' + '</b></p>' \
                            + '<p>' + self.format_urls() + '</p>'\
                            + '</form></body></html>'
 
             elif resource in self.content:
                 httpCode = "308 Permanent Redirect"
-                htmlBody = '<meta http-equiv="refresh" content="2;URL=' + self.content[resource] + '">'
-            else:
+                htmlBody = '<meta http-equiv="refresh" content="1;URL=' + self.content[resource] + '">'
 
+            else:
                 httpCode = "404 Not Found"
                 htmlBody = "Error: " + resource + " is not an avaliable resource"
 
         if method == "POST":
+    
+            if body.find('url=') != -1 and body.find('&') != -1 and body.find('short=') != -1:
 
-            info = body.split('&')
+                info = body.split('&')
+                url = unquote(info[0].split('=')[1])
+                short_url = '/' + info[1].split('=')[1]
 
-            url = info[0].split('=')[1]
-            real_url = 'https://' + url[url.find('www'):]
-            short = '/' + info[1].split('=')[1]
+                if not url.startswith('http://') and not url.startswith('https://'):
+                    url = 'https://' + url
 
-            self.content[short] = real_url
+                self.content[short_url] = url
 
             httpCode = "200 OK"
-            htmlBody = "<html><body>" + "se ha hecho un post" + "</body></html>"
+            htmlBody = '<html><body><a href="' + self.content[short_url] + '">' + url + '</a> is now '\
+                                            + '<a href="' + self.content[short_url] + '">' + short_url + '</body></html>'
 
         return (httpCode, htmlBody)
 
